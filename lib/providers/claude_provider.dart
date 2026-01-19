@@ -123,4 +123,72 @@ class ClaudeProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
   }
+
+  // AI Feature Option 2: Analyze message for idioms/slang
+  Future<String> analyzeMessage({
+    required String originalText,
+    required String translatedText,
+    required String sourceLanguage,
+    required String targetLanguage,
+  }) async {
+    try {
+      return await _claudeService.analyzeMessage(
+        originalText: originalText,
+        translatedText: translatedText,
+        sourceLanguage: sourceLanguage,
+        targetLanguage: targetLanguage,
+      );
+    } catch (e) {
+      _setError(e.toString());
+      rethrow;
+    }
+  }
+
+  // AI Feature Option 3: Get conversation insights
+  Future<String> getConversationInsights({
+    required List<ConversationMessage> messages,
+  }) async {
+    try {
+      return await _claudeService.getConversationInsights(messages: messages);
+    } catch (e) {
+      _setError(e.toString());
+      rethrow;
+    }
+  }
+
+  // AI Feature Option 4: Get quick help
+  Future<String> getQuickHelp({
+    required String situation,
+    required String userLanguage,
+    required String localLanguage,
+  }) async {
+    try {
+      return await _claudeService.getQuickHelp(
+        situation: situation,
+        userLanguage: userLanguage,
+        localLanguage: localLanguage,
+      );
+    } catch (e) {
+      _setError(e.toString());
+      rethrow;
+    }
+  }
+
+  // Get contextual suggestions
+  Future<String> getSuggestions({
+    required List<ConversationMessage> messages,
+    required String userLanguage,
+    required String localLanguage,
+  }) async {
+    try {
+      return await _claudeService.getSuggestions(
+        messages: messages,
+        userLanguage: userLanguage,
+        localLanguage: localLanguage,
+      );
+    } catch (e) {
+      _setError(e.toString());
+      rethrow;
+    }
+  }
 }

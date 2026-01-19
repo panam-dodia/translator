@@ -82,13 +82,10 @@ class TranslationService {
   }
 
   // Get available (downloaded) models
+  // Note: ML Kit doesn't provide a direct method to list all downloaded models
+  // We track downloaded models through isModelDownloaded checks instead
   Future<List<String>> getDownloadedModels() async {
-    try {
-      final models = await _modelManager.getAvailableModels();
-      return models;
-    } catch (e) {
-      return [];
-    }
+    return [];
   }
 
   // Delete language model

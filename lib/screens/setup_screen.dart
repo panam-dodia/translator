@@ -91,7 +91,7 @@ class _SetupScreenState extends State<SetupScreen> {
 
       // Navigate to conversation screen
       if (mounted) {
-        Navigator.of(context).pushReplacement(
+        Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => const ConversationScreen(),
           ),
@@ -113,163 +113,223 @@ class _SetupScreenState extends State<SetupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Real-Time Translator'),
-        centerTitle: true,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Icon(
-              Icons.translate,
-              size: 80,
-              color: ThemeConfig.user1Color,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF667eea),
+              Color(0xFF764ba2),
+              Color(0xFFf093fb),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              children: [
+                // Header
+                const SizedBox(height: 40),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: Colors.white.withOpacity(0.3)),
+                  ),
+                  child: const Text(
+                    'AI Translator',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Speak naturally, connect globally',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Colors.white.withOpacity(0.9),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+
+                const Spacer(),
+
+                // Language Cards
+                _buildLanguageCard(
+                  label: 'Person 1 speaks',
+                  selectedLanguage: _user1Language,
+                  onChanged: (value) {
+                    if (value != null) setState(() => _user1Language = value);
+                  },
+                ),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.25),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        final temp = _user1Language;
+                        _user1Language = _user2Language;
+                        _user2Language = temp;
+                      });
+                    },
+                    child: const Icon(
+                      Icons.swap_vert_rounded,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _buildLanguageCard(
+                  label: 'Person 2 speaks',
+                  selectedLanguage: _user2Language,
+                  onChanged: (value) {
+                    if (value != null) setState(() => _user2Language = value);
+                  },
+                ),
+
+                const Spacer(),
+
+                // Start Button
+                Container(
+                  width: double.infinity,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFf093fb), Color(0xFFf5576c)],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFf5576c).withOpacity(0.4),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _isLoading ? null : _startConversation,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Center(
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2.5,
+                                ),
+                              )
+                            : const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.flash_on, color: Colors.white, size: 24),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Start Conversation',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
             ),
-            const SizedBox(height: 32),
-            const Text(
-              'Select Languages',
-              style: ThemeConfig.headingStyle,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 48),
-
-            // User 1 Language Selection
-            _buildUserLanguageCard(
-              userNumber: 1,
-              color: ThemeConfig.user1Color,
-              selectedLanguage: _user1Language,
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _user1Language = value);
-                }
-              },
-            ),
-
-            const SizedBox(height: 24),
-
-            // Swap languages button
-            Center(
-              child: IconButton(
-                onPressed: () {
-                  setState(() {
-                    final temp = _user1Language;
-                    _user1Language = _user2Language;
-                    _user2Language = temp;
-                  });
-                },
-                icon: const Icon(Icons.swap_vert),
-                iconSize: 32,
-                tooltip: 'Swap languages',
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // User 2 Language Selection
-            _buildUserLanguageCard(
-              userNumber: 2,
-              color: ThemeConfig.user2Color,
-              selectedLanguage: _user2Language,
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _user2Language = value);
-                }
-              },
-            ),
-
-            const SizedBox(height: 48),
-
-            // Start button
-            ElevatedButton(
-              onPressed: _isLoading ? null : _startConversation,
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Start Conversation'),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildUserLanguageCard({
-    required int userNumber,
-    required Color color,
+  Widget _buildLanguageCard({
+    required String label,
     required String selectedLanguage,
     required ValueChanged<String?> onChanged,
   }) {
     final languageInfo = LanguageCodes.getLanguageInfo(selectedLanguage);
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      '$userNumber',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: color,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'User $userNumber',
-                  style: ThemeConfig.subheadingStyle.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.3),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.white.withOpacity(0.8),
+              letterSpacing: 0.5,
             ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
               value: selectedLanguage,
-              decoration: const InputDecoration(
-                labelText: 'Language',
-                border: OutlineInputBorder(),
+              isExpanded: true,
+              dropdownColor: const Color(0xFF764ba2),
+              icon: const Icon(Icons.expand_more, color: Colors.white),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
               ),
               items: LanguageCodes.supportedLanguages.entries.map((entry) {
                 return DropdownMenuItem(
                   value: entry.key,
-                  child: Text(entry.value.name),
+                  child: Text(
+                    entry.value.name,
+                    style: const TextStyle(color: Colors.white),
+                  ),
                 );
               }).toList(),
               onChanged: onChanged,
             ),
-            if (languageInfo != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Code: ${languageInfo.code}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: ThemeConfig.textSecondaryColor,
-                ),
-              ),
-            ],
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

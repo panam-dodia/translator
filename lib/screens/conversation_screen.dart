@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/theme_config.dart';
+import '../providers/claude_provider.dart';
 import '../providers/conversation_provider.dart';
 import '../providers/speech_provider.dart';
 import '../providers/translation_provider.dart';
@@ -109,18 +110,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Translator'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            onPressed: () {
-              context.read<ConversationProvider>().clearHistory();
-            },
-            tooltip: 'Clear conversation',
-          ),
-        ],
-      ),
       body: Consumer<ConversationProvider>(
         builder: (context, conversationProvider, _) {
           final user1Profile = conversationProvider.user1Profile;
@@ -137,15 +126,23 @@ class _ConversationScreenState extends State<ConversationScreen> {
                 child: _buildUserSection(
                   userId: AppConstants.user1Id,
                   profile: user1Profile,
-                  color: ThemeConfig.user1Color,
                   isRotated: false,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                  ),
                 ),
               ),
 
-              // Divider
+              // Center Divider
               Container(
-                height: 2,
-                color: Colors.grey[300],
+                height: 4,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF667eea), Color(0xFFf093fb)],
+                  ),
+                ),
               ),
 
               // User 2 Section (Bottom - Rotated)
@@ -155,8 +152,12 @@ class _ConversationScreenState extends State<ConversationScreen> {
                   child: _buildUserSection(
                     userId: AppConstants.user2Id,
                     profile: user2Profile,
-                    color: ThemeConfig.user2Color,
                     isRotated: true,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFFf093fb), Color(0xFFf5576c)],
+                    ),
                   ),
                 ),
               ),
@@ -170,8 +171,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
   Widget _buildUserSection({
     required String userId,
     required dynamic profile,
-    required Color color,
     required bool isRotated,
+    required Gradient gradient,
   }) {
     return Consumer3<ConversationProvider, SpeechProvider, TtsProvider>(
       builder: (context, conversationProvider, speechProvider, ttsProvider, _) {
@@ -189,105 +190,192 @@ class _ConversationScreenState extends State<ConversationScreen> {
         final allMessages = conversationProvider.messages;
 
         return Container(
-          color: color.withOpacity(0.05),
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: isActive ? color : Colors.grey,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'User ${userId == AppConstants.user1Id ? "1" : "2"}',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: color,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '($languageName)',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: ThemeConfig.textSecondaryColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Messages
-              Expanded(
-                child: allMessages.isEmpty
-                    ? Center(
-                        child: Text(
-                          'Tap the microphone to start',
-                          style: TextStyle(color: Colors.grey[600]),
+          decoration: BoxDecoration(gradient: gradient),
+          child: SafeArea(
+            bottom: !isRotated,
+            top: isRotated,
+            child: Column(
+              children: [
+                // Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                  child: Row(
+                    children: [
+                      if (!isRotated)
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back, color: Colors.white),
+                          onPressed: () => Navigator.pop(context),
+                        )
+                      else
+                        const SizedBox(width: 48),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white.withOpacity(0.3)),
+                          ),
+                          child: Text(
+                            languageName,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
                         ),
-                      )
-                    : ListView.builder(
-                        reverse: true,
-                        padding: const EdgeInsets.all(16),
-                        itemCount: allMessages.length,
-                        itemBuilder: (context, index) {
-                          final reversedIndex = allMessages.length - 1 - index;
-                          final message = allMessages[reversedIndex];
-                          final isOwnMessage = message.userId == userId;
-
-                          return _buildMessageBubble(
-                            message: message,
-                            isOwnMessage: isOwnMessage,
-                            color: color,
-                          );
-                        },
                       ),
-              ),
+                      if (!isRotated)
+                        PopupMenuButton(
+                          icon: const Icon(Icons.more_horiz, color: Colors.white),
+                          color: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              child: const Row(
+                                children: [
+                                  Icon(Icons.lightbulb_outline, size: 20),
+                                  SizedBox(width: 12),
+                                  Text('AI Insights'),
+                                ],
+                              ),
+                              onTap: () => Future.delayed(
+                                const Duration(milliseconds: 100),
+                                () => _showAIInsights(context),
+                              ),
+                            ),
+                            PopupMenuItem(
+                              child: const Row(
+                                children: [
+                                  Icon(Icons.delete_outline, size: 20),
+                                  SizedBox(width: 12),
+                                  Text('Clear History'),
+                                ],
+                              ),
+                              onTap: () => context.read<ConversationProvider>().clearHistory(),
+                            ),
+                          ],
+                        )
+                      else
+                        const SizedBox(width: 48),
+                    ],
+                  ),
+                ),
 
-              // Speech status
-              if (isListening || isProcessing || isSpeaking)
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  color: color.withOpacity(0.1),
-                  child: Text(
-                    isListening
-                        ? 'Listening... ${speechProvider.partialText}'
-                        : isProcessing
-                            ? 'Translating...'
-                            : 'Speaking...',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: color,
-                      fontStyle: FontStyle.italic,
+                // Messages
+                Expanded(
+                  child: allMessages.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.mic_none_rounded,
+                                size: 64,
+                                color: Colors.white.withOpacity(0.3),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Tap to speak',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.7),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          reverse: true,
+                          padding: const EdgeInsets.all(16),
+                          itemCount: allMessages.length,
+                          itemBuilder: (context, index) {
+                            final reversedIndex = allMessages.length - 1 - index;
+                            final message = allMessages[reversedIndex];
+                            final isOwnMessage = message.userId == userId;
+
+                            return _buildMessageBubble(
+                              message: message,
+                              isOwnMessage: isOwnMessage,
+                            );
+                          },
+                        ),
+                ),
+
+                // Speech status
+                if (isListening || isProcessing || isSpeaking)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.symmetric(horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: const AlwaysStoppedAnimation(Colors.white),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          isListening
+                              ? 'Listening...'
+                              : isProcessing
+                                  ? 'Translating...'
+                                  : 'Speaking...',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Microphone button
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20, top: 16),
+                  child: GestureDetector(
+                    onTap: isListening
+                        ? () => context.read<SpeechProvider>().stopListening()
+                        : () => _handleSpeech(userId),
+                    child: Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isListening ? Colors.red : Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: (isListening ? Colors.red : Colors.white)
+                                .withOpacity(0.4),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        isListening ? Icons.stop_rounded : Icons.mic_rounded,
+                        color: isListening ? Colors.white : const Color(0xFF667eea),
+                        size: 32,
+                      ),
                     ),
                   ),
                 ),
-
-              // Microphone button
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: FloatingActionButton(
-                  heroTag: 'mic_$userId',
-                  onPressed: isListening
-                      ? () => context.read<SpeechProvider>().stopListening()
-                      : () => _handleSpeech(userId),
-                  backgroundColor: isListening ? Colors.red : color,
-                  child: Icon(
-                    isListening ? Icons.stop : Icons.mic,
-                    size: 32,
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -297,45 +385,127 @@ class _ConversationScreenState extends State<ConversationScreen> {
   Widget _buildMessageBubble({
     required dynamic message,
     required bool isOwnMessage,
-    required Color color,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
+      padding: const EdgeInsets.only(bottom: 16.0),
       child: Align(
         alignment: isOwnMessage ? Alignment.centerRight : Alignment.centerLeft,
         child: Container(
           constraints: BoxConstraints(
             maxWidth: MediaQuery.of(context).size.width * 0.75,
           ),
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: isOwnMessage ? color.withOpacity(0.2) : Colors.grey[200],
-            borderRadius: BorderRadius.circular(12),
+            color: Colors.white.withOpacity(isOwnMessage ? 0.25 : 0.9),
+            borderRadius: BorderRadius.circular(20),
+            border: isOwnMessage
+                ? Border.all(color: Colors.white.withOpacity(0.3))
+                : null,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isOwnMessage ? 0.1 : 0.08),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Show original text for own messages, translation for others
+              // Main message text
               Text(
                 isOwnMessage ? message.originalText : message.translatedText,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
+                  color: isOwnMessage ? Colors.white : const Color(0xFF1E293B),
+                  height: 1.4,
                 ),
               ),
-              const SizedBox(height: 4),
-              // Show translation in smaller text
-              Text(
-                isOwnMessage ? message.translatedText : message.originalText,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: ThemeConfig.textSecondaryColor,
-                  fontStyle: FontStyle.italic,
-                ),
+              const SizedBox(height: 8),
+              // Translation text with icon
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.translate_rounded,
+                    size: 14,
+                    color: isOwnMessage
+                        ? Colors.white.withOpacity(0.6)
+                        : const Color(0xFF94a3b8),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      isOwnMessage ? message.translatedText : message.originalText,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: isOwnMessage
+                            ? Colors.white.withOpacity(0.85)
+                            : const Color(0xFF64748B),
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+
+  // AI Feature: Show conversation insights
+  void _showAIInsights(BuildContext context) async {
+    final conversationProvider = context.read<ConversationProvider>();
+    final claudeProvider = context.read<ClaudeProvider>();
+    final messages = conversationProvider.messages;
+
+    if (messages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No conversation yet')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Conversation Insights', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+        content: FutureBuilder<String>(
+          future: claudeProvider.getConversationInsights(messages: messages),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Analyzing...'),
+                ],
+              );
+            } else if (snapshot.hasError) {
+              return Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red, fontSize: 14));
+            } else {
+              return SingleChildScrollView(
+                child: Text(
+                  snapshot.data ?? 'No insights available',
+                  style: const TextStyle(fontSize: 14, height: 1.5),
+                ),
+              );
+            }
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
       ),
     );
   }
