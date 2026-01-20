@@ -1,75 +1,95 @@
 import 'package:flutter/material.dart';
 
 class ThemeConfig {
-  // User colors
-  static const Color user1Color = Color(0xFF2196F3); // Blue
-  static const Color user2Color = Color(0xFF4CAF50); // Green
+  // Minimal color palette - Startup aesthetic
+  static const Color primaryDark = Color(0xFF0f172a);
+  static const Color primaryAccent = Color(0xFF3b82f6);
+  static const Color backgroundColor = Color(0xFFffffff);
 
-  // User colors (light variants)
-  static const Color user1LightColor = Color(0xFFBBDEFB);
-  static const Color user2LightColor = Color(0xFFC8E6C9);
+  // Neutral shades
+  static const Color surfaceColor = Color(0xFFf8fafc);
+  static const Color borderColor = Color(0xFFe2e8f0);
 
-  // Common colors
-  static const Color backgroundColor = Color(0xFFF5F5F5);
-  static const Color surfaceColor = Colors.white;
-  static const Color errorColor = Color(0xFFD32F2F);
-  static const Color textPrimaryColor = Color(0xFF212121);
-  static const Color textSecondaryColor = Color(0xFF757575);
+  // Text colors
+  static const Color textPrimaryColor = Color(0xFF0f172a);
+  static const Color textSecondaryColor = Color(0xFF64748b);
+  static const Color textTertiaryColor = Color(0xFF94a3b8);
+
+  // User section colors (minimal)
+  static const Color user1Background = Color(0xFF0f172a);
+  static const Color user2Background = Color(0xFF1e293b);
 
   // App theme
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     colorScheme: ColorScheme.fromSeed(
-      seedColor: user1Color,
+      seedColor: primaryAccent,
       brightness: Brightness.light,
     ),
     scaffoldBackgroundColor: backgroundColor,
     appBarTheme: const AppBarTheme(
       centerTitle: true,
       elevation: 0,
-      backgroundColor: surfaceColor,
+      backgroundColor: backgroundColor,
       foregroundColor: textPrimaryColor,
     ),
     cardTheme: CardTheme(
-      elevation: 2,
+      elevation: 0,
+      color: surfaceColor,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: borderColor, width: 1),
       ),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+        backgroundColor: primaryDark,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
       ),
     ),
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
-      elevation: 4,
+      elevation: 0,
+      backgroundColor: primaryDark,
     ),
   );
 
   // Text styles
   static const TextStyle headingStyle = TextStyle(
-    fontSize: 24,
-    fontWeight: FontWeight.bold,
+    fontSize: 28,
+    fontWeight: FontWeight.w700,
     color: textPrimaryColor,
+    letterSpacing: -0.5,
   );
 
   static const TextStyle subheadingStyle = TextStyle(
     fontSize: 16,
-    fontWeight: FontWeight.w500,
+    fontWeight: FontWeight.w400,
     color: textSecondaryColor,
+  );
+
+  static const TextStyle labelStyle = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+    color: textSecondaryColor,
+    letterSpacing: 0.5,
   );
 
   static const TextStyle messageOriginalStyle = TextStyle(
     fontSize: 16,
-    fontWeight: FontWeight.w600,
+    fontWeight: FontWeight.w500,
     color: textPrimaryColor,
+    height: 1.5,
   );
 
   static const TextStyle messageTranslatedStyle = TextStyle(
     fontSize: 14,
+    fontWeight: FontWeight.w400,
     color: textSecondaryColor,
+    height: 1.5,
   );
 }

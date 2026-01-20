@@ -17,8 +17,8 @@ class ClaudeAPIService {
       'x-api-key': AppConfig.claudeApiKey,
       'anthropic-version': '2023-06-01',
     };
-    _dio.options.connectTimeout = const Duration(seconds: 30);
-    _dio.options.receiveTimeout = const Duration(seconds: 30);
+    _dio.options.connectTimeout = const Duration(seconds: 60);
+    _dio.options.receiveTimeout = const Duration(seconds: 60);
   }
 
   // Build context from conversation messages
@@ -78,10 +78,15 @@ Please provide a helpful and concise answer based on the conversation context ab
       };
 
       // Make API request
+      print('Sending request to Claude API...');
+      print('Model: ${AppConstants.claudeModel}');
+
       final response = await _dio.post(
         '',
         data: requestBody,
       );
+
+      print('Response status: ${response.statusCode}');
 
       // Extract response
       if (response.statusCode == 200) {
@@ -94,14 +99,23 @@ Please provide a helpful and concise answer based on the conversation context ab
         throw Exception('Claude API error: ${response.statusMessage}');
       }
     } on DioException catch (e) {
+      print('DioException occurred');
+      print('Response: ${e.response?.data}');
+      print('Status code: ${e.response?.statusCode}');
+
       if (e.response != null) {
-        final errorMessage = e.response?.data['error']?['message'] ??
+        final errorData = e.response?.data;
+        print('Full error data: $errorData');
+
+        final errorMessage = errorData['error']?['message'] ??
+            errorData['error']?['type'] ??
             'Unknown API error';
         throw Exception('Claude API error: $errorMessage');
       } else {
         throw Exception('Network error: ${e.message}');
       }
     } catch (e) {
+      print('General exception: $e');
       throw Exception('Failed to query Claude: $e');
     }
   }
@@ -133,7 +147,7 @@ Please:
 2. Suggest if there's a more natural or contextually better translation
 3. Provide any cultural tips that would help the traveler
 
-Keep your response very concise (2-3 sentences max, friendly tone).''';
+Keep your response very concise (2-3 sentences max, friendly tone). Use plain text only, no markdown or special formatting.''';
 
     return await sendQuery(query: query);
   }
@@ -149,13 +163,15 @@ Keep your response very concise (2-3 sentences max, friendly tone).''';
     final context = _buildContext(messages, limit: 15);
     final query = '''$context
 
-Based on this conversation between a traveler and a local, provide:
+Based on this conversation between a traveler and a local, provide insights in plain text format (NO markdown, NO asterisks, NO special formatting):
 
-1. **Summary** (1-2 sentences): What they discussed
-2. **Common Phrases** (3 phrases): Key phrases that were used
-3. **Cultural Tip** (1 tip): One helpful cultural insight for the traveler
+Summary: (1-2 sentences about what they discussed)
 
-Format your response clearly with emoji bullets (📝, 💬, 🌍) and keep it concise and travel-friendly.''';
+Common Phrases: (3 key phrases that were used)
+
+Cultural Tip: (One helpful cultural insight for the traveler)
+
+Keep it concise and travel-friendly. Use simple line breaks for structure.''';
 
     return await sendQuery(query: query);
   }
@@ -175,7 +191,7 @@ Please provide:
 2. When/how to use it
 3. Any cultural tips
 
-Keep it practical, concise, and travel-focused (3-4 sentences max).''';
+Keep it practical, concise, and travel-focused (3-4 sentences max). Use plain text only, no markdown or special formatting.''';
 
     return await sendQuery(query: query);
   }

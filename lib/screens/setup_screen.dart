@@ -113,156 +113,110 @@ class _SetupScreenState extends State<SetupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF667eea),
-              Color(0xFF764ba2),
-              Color(0xFFf093fb),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              children: [
-                // Header
-                const SizedBox(height: 40),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: Colors.white.withOpacity(0.3)),
-                  ),
+      backgroundColor: ThemeConfig.backgroundColor,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              const SizedBox(height: 20),
+              const Text(
+                'AI Translator',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
+                  color: ThemeConfig.textPrimaryColor,
+                  letterSpacing: -1,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Speak naturally, connect globally',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: ThemeConfig.textSecondaryColor,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+
+              const SizedBox(height: 60),
+
+              // Language Selection
+              _buildLanguageCard(
+                label: 'First Language',
+                selectedLanguage: _user1Language,
+                onChanged: (value) {
+                  if (value != null) setState(() => _user1Language = value);
+                },
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: TextButton(
+                  onPressed: () {
+                    setState(() {
+                      final temp = _user1Language;
+                      _user1Language = _user2Language;
+                      _user2Language = temp;
+                    });
+                  },
                   child: const Text(
-                    'AI Translator',
+                    'Swap',
                     style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      letterSpacing: 0.5,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: ThemeConfig.primaryAccent,
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  'Speak naturally, connect globally',
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: Colors.white.withOpacity(0.9),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+              ),
+              const SizedBox(height: 16),
+              _buildLanguageCard(
+                label: 'Second Language',
+                selectedLanguage: _user2Language,
+                onChanged: (value) {
+                  if (value != null) setState(() => _user2Language = value);
+                },
+              ),
 
-                const Spacer(),
+              const Spacer(),
 
-                // Language Cards
-                _buildLanguageCard(
-                  label: 'Person 1 speaks',
-                  selectedLanguage: _user1Language,
-                  onChanged: (value) {
-                    if (value != null) setState(() => _user1Language = value);
-                  },
-                ),
-                const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.25),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        final temp = _user1Language;
-                        _user1Language = _user2Language;
-                        _user2Language = temp;
-                      });
-                    },
-                    child: const Icon(
-                      Icons.swap_vert_rounded,
-                      color: Colors.white,
-                      size: 28,
+              // Start Button
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _startConversation,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ThemeConfig.primaryDark,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.5,
+                          ),
+                        )
+                      : const Text(
+                          'Start Conversation',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
                 ),
-                const SizedBox(height: 24),
-                _buildLanguageCard(
-                  label: 'Person 2 speaks',
-                  selectedLanguage: _user2Language,
-                  onChanged: (value) {
-                    if (value != null) setState(() => _user2Language = value);
-                  },
-                ),
-
-                const Spacer(),
-
-                // Start Button
-                Container(
-                  width: double.infinity,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFf093fb), Color(0xFFf5576c)],
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFf5576c).withOpacity(0.4),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: _isLoading ? null : _startConversation,
-                      borderRadius: BorderRadius.circular(16),
-                      child: Center(
-                        child: _isLoading
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2.5,
-                                ),
-                              )
-                            : const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.flash_on, color: Colors.white, size: 24),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Start Conversation',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
+              ),
+              const SizedBox(height: 16),
+            ],
           ),
         ),
       ),
@@ -277,59 +231,41 @@ class _SetupScreenState extends State<SetupScreen> {
     final languageInfo = LanguageCodes.getLanguageInfo(selectedLanguage);
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(20),
+        color: ThemeConfig.surfaceColor,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.white.withOpacity(0.3),
+          color: ThemeConfig.borderColor,
           width: 1.5,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.white.withOpacity(0.8),
-              letterSpacing: 0.5,
-            ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: selectedLanguage,
+          isExpanded: true,
+          dropdownColor: Colors.white,
+          icon: const Icon(Icons.expand_more, color: ThemeConfig.textSecondaryColor, size: 20),
+          style: const TextStyle(
+            color: ThemeConfig.textPrimaryColor,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
           ),
-          const SizedBox(height: 12),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: selectedLanguage,
-              isExpanded: true,
-              dropdownColor: const Color(0xFF764ba2),
-              icon: const Icon(Icons.expand_more, color: Colors.white),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
+          items: LanguageCodes.supportedLanguages.entries.map((entry) {
+            return DropdownMenuItem(
+              value: entry.key,
+              child: Text(
+                entry.value.name,
+                style: const TextStyle(
+                  color: ThemeConfig.textPrimaryColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-              items: LanguageCodes.supportedLanguages.entries.map((entry) {
-                return DropdownMenuItem(
-                  value: entry.key,
-                  child: Text(
-                    entry.value.name,
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                );
-              }).toList(),
-              onChanged: onChanged,
-            ),
-          ),
-        ],
+            );
+          }).toList(),
+          onChanged: onChanged,
+        ),
       ),
     );
   }

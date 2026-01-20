@@ -127,22 +127,14 @@ class _ConversationScreenState extends State<ConversationScreen> {
                   userId: AppConstants.user1Id,
                   profile: user1Profile,
                   isRotated: false,
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                  ),
+                  backgroundColor: ThemeConfig.user1Background,
                 ),
               ),
 
               // Center Divider
               Container(
-                height: 4,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF667eea), Color(0xFFf093fb)],
-                  ),
-                ),
+                height: 1,
+                color: ThemeConfig.borderColor,
               ),
 
               // User 2 Section (Bottom - Rotated)
@@ -153,11 +145,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
                     userId: AppConstants.user2Id,
                     profile: user2Profile,
                     isRotated: true,
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFFf093fb), Color(0xFFf5576c)],
-                    ),
+                    backgroundColor: ThemeConfig.user2Background,
                   ),
                 ),
               ),
@@ -172,7 +160,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
     required String userId,
     required dynamic profile,
     required bool isRotated,
-    required Gradient gradient,
+    required Color backgroundColor,
   }) {
     return Consumer3<ConversationProvider, SpeechProvider, TtsProvider>(
       builder: (context, conversationProvider, speechProvider, ttsProvider, _) {
@@ -190,7 +178,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
         final allMessages = conversationProvider.messages;
 
         return Container(
-          decoration: BoxDecoration(gradient: gradient),
+          color: backgroundColor,
           child: SafeArea(
             bottom: !isRotated,
             top: isRotated,
@@ -198,69 +186,66 @@ class _ConversationScreenState extends State<ConversationScreen> {
               children: [
                 // Header
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
                   child: Row(
                     children: [
                       if (!isRotated)
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back, color: Colors.white),
-                          onPressed: () => Navigator.pop(context),
-                        )
-                      else
-                        const SizedBox(width: 48),
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white.withOpacity(0.3)),
-                          ),
-                          child: Text(
-                            languageName,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              letterSpacing: 0.5,
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: const Text(
+                            'Back',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white70,
                             ),
                           ),
+                        )
+                      else
+                        const SizedBox.shrink(),
+                      const Spacer(),
+                      Text(
+                        languageName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          letterSpacing: 0.3,
                         ),
                       ),
+                      const Spacer(),
                       if (!isRotated)
                         PopupMenuButton(
-                          icon: const Icon(Icons.more_horiz, color: Colors.white),
+                          icon: const Text(
+                            'Menu',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white70,
+                            ),
+                          ),
                           color: Colors.white,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           itemBuilder: (context) => [
-                            PopupMenuItem(
-                              child: const Row(
-                                children: [
-                                  Icon(Icons.lightbulb_outline, size: 20),
-                                  SizedBox(width: 12),
-                                  Text('AI Insights'),
-                                ],
-                              ),
-                              onTap: () => Future.delayed(
-                                const Duration(milliseconds: 100),
-                                () => _showAIInsights(context),
-                              ),
+                            const PopupMenuItem(
+                              value: 'insights',
+                              child: Text('AI Insights'),
                             ),
-                            PopupMenuItem(
-                              child: const Row(
-                                children: [
-                                  Icon(Icons.delete_outline, size: 20),
-                                  SizedBox(width: 12),
-                                  Text('Clear History'),
-                                ],
-                              ),
-                              onTap: () => context.read<ConversationProvider>().clearHistory(),
+                            const PopupMenuItem(
+                              value: 'clear',
+                              child: Text('Clear History'),
                             ),
                           ],
+                          onSelected: (value) {
+                            if (value == 'insights') {
+                              _showAIInsights(context);
+                            } else if (value == 'clear') {
+                              context.read<ConversationProvider>().clearHistory();
+                            }
+                          },
                         )
                       else
-                        const SizedBox(width: 48),
+                        const SizedBox.shrink(),
                     ],
                   ),
                 ),
@@ -269,29 +254,18 @@ class _ConversationScreenState extends State<ConversationScreen> {
                 Expanded(
                   child: allMessages.isEmpty
                       ? Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.mic_none_rounded,
-                                size: 64,
-                                color: Colors.white.withOpacity(0.3),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Tap to speak',
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.7),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            'Tap to speak',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.5),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         )
                       : ListView.builder(
                           reverse: true,
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                           itemCount: allMessages.length,
                           itemBuilder: (context, index) {
                             final reversedIndex = allMessages.length - 1 - index;
@@ -309,67 +283,45 @@ class _ConversationScreenState extends State<ConversationScreen> {
                 // Speech status
                 if (isListening || isProcessing || isSpeaking)
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     margin: const EdgeInsets.symmetric(horizontal: 20),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white.withOpacity(0.3)),
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: const AlwaysStoppedAnimation(Colors.white),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          isListening
-                              ? 'Listening...'
-                              : isProcessing
-                                  ? 'Translating...'
-                                  : 'Speaking...',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      isListening
+                          ? 'Listening...'
+                          : isProcessing
+                              ? 'Translating...'
+                              : 'Speaking...',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
 
                 // Microphone button
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 20, top: 16),
+                  padding: const EdgeInsets.only(bottom: 24, top: 20),
                   child: GestureDetector(
                     onTap: isListening
                         ? () => context.read<SpeechProvider>().stopListening()
                         : () => _handleSpeech(userId),
                     child: Container(
-                      width: 72,
-                      height: 72,
+                      width: 64,
+                      height: 64,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isListening ? Colors.red : Colors.white,
-                        boxShadow: [
-                          BoxShadow(
-                            color: (isListening ? Colors.red : Colors.white)
-                                .withOpacity(0.4),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
+                        color: isListening ? ThemeConfig.primaryAccent : Colors.white,
                       ),
                       child: Icon(
                         isListening ? Icons.stop_rounded : Icons.mic_rounded,
-                        color: isListening ? Colors.white : const Color(0xFF667eea),
-                        size: 32,
+                        color: isListening ? Colors.white : ThemeConfig.primaryDark,
+                        size: 28,
                       ),
                     ),
                   ),
@@ -387,27 +339,22 @@ class _ConversationScreenState extends State<ConversationScreen> {
     required bool isOwnMessage,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
+      padding: const EdgeInsets.only(bottom: 12.0),
       child: Align(
         alignment: isOwnMessage ? Alignment.centerRight : Alignment.centerLeft,
         child: Container(
           constraints: BoxConstraints(
             maxWidth: MediaQuery.of(context).size.width * 0.75,
           ),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(isOwnMessage ? 0.25 : 0.9),
-            borderRadius: BorderRadius.circular(20),
+            color: isOwnMessage
+                ? Colors.white.withOpacity(0.15)
+                : Colors.white,
+            borderRadius: BorderRadius.circular(12),
             border: isOwnMessage
-                ? Border.all(color: Colors.white.withOpacity(0.3))
+                ? Border.all(color: Colors.white.withOpacity(0.2), width: 1)
                 : null,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isOwnMessage ? 0.1 : 0.08),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,38 +363,24 @@ class _ConversationScreenState extends State<ConversationScreen> {
               Text(
                 isOwnMessage ? message.originalText : message.translatedText,
                 style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: isOwnMessage ? Colors.white : const Color(0xFF1E293B),
-                  height: 1.4,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: isOwnMessage ? Colors.white : ThemeConfig.textPrimaryColor,
+                  height: 1.5,
                 ),
               ),
-              const SizedBox(height: 8),
-              // Translation text with icon
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.translate_rounded,
-                    size: 14,
-                    color: isOwnMessage
-                        ? Colors.white.withOpacity(0.6)
-                        : const Color(0xFF94a3b8),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      isOwnMessage ? message.translatedText : message.originalText,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isOwnMessage
-                            ? Colors.white.withOpacity(0.85)
-                            : const Color(0xFF64748B),
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                ],
+              const SizedBox(height: 6),
+              // Translation text
+              Text(
+                isOwnMessage ? message.translatedText : message.originalText,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                  color: isOwnMessage
+                      ? Colors.white.withOpacity(0.7)
+                      : ThemeConfig.textSecondaryColor,
+                  height: 1.4,
+                ),
               ),
             ],
           ),
@@ -474,8 +407,16 @@ class _ConversationScreenState extends State<ConversationScreen> {
       context: context,
       barrierDismissible: true,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Conversation Insights', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: Colors.white,
+        title: const Text(
+          'AI Insights',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: ThemeConfig.textPrimaryColor,
+          ),
+        ),
         content: FutureBuilder<String>(
           future: claudeProvider.getConversationInsights(messages: messages),
           builder: (context, snapshot) {
@@ -483,18 +424,41 @@ class _ConversationScreenState extends State<ConversationScreen> {
               return const Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircularProgressIndicator(),
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: ThemeConfig.primaryAccent,
+                    ),
+                  ),
                   SizedBox(height: 16),
-                  Text('Analyzing...'),
+                  Text(
+                    'Analyzing...',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: ThemeConfig.textSecondaryColor,
+                    ),
+                  ),
                 ],
               );
             } else if (snapshot.hasError) {
-              return Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red, fontSize: 14));
+              return Text(
+                'Error: ${snapshot.error}',
+                style: const TextStyle(
+                  color: Colors.red,
+                  fontSize: 14,
+                ),
+              );
             } else {
               return SingleChildScrollView(
                 child: Text(
                   snapshot.data ?? 'No insights available',
-                  style: const TextStyle(fontSize: 14, height: 1.5),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    height: 1.6,
+                    color: ThemeConfig.textPrimaryColor,
+                  ),
                 ),
               );
             }
@@ -503,7 +467,16 @@ class _ConversationScreenState extends State<ConversationScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            style: TextButton.styleFrom(
+              foregroundColor: ThemeConfig.primaryAccent,
+            ),
+            child: const Text(
+              'Close',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),

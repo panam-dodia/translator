@@ -20,7 +20,7 @@ class AppConstants {
 
   // Claude API
   static const String claudeApiUrl = 'https://api.anthropic.com/v1/messages';
-  static const String claudeModel = 'claude-3-5-sonnet-20241022';
+  static const String claudeModel = 'claude-sonnet-4-5-20250929';
   static const int claudeMaxTokens = 1024;
   static const int claudeContextMessageLimit = 20;
 
