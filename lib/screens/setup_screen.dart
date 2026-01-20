@@ -8,6 +8,7 @@ import '../providers/translation_provider.dart';
 import '../utils/constants.dart';
 import '../utils/language_codes.dart';
 import 'conversation_screen.dart';
+import 'history_screen.dart';
 
 class SetupScreen extends StatefulWidget {
   const SetupScreen({super.key});
@@ -17,8 +18,8 @@ class SetupScreen extends StatefulWidget {
 }
 
 class _SetupScreenState extends State<SetupScreen> {
-  String _user1Language = 'en'; // English
-  String _user2Language = 'es'; // Spanish
+  String? _user1Language; // Placeholder - null until selected
+  String? _user2Language; // Placeholder - null until selected
   bool _isLoading = false;
 
   @override
@@ -28,20 +29,28 @@ class _SetupScreenState extends State<SetupScreen> {
   }
 
   Future<void> _loadSavedPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _user1Language = prefs.getString(AppConstants.user1LanguageKey) ?? 'en';
-      _user2Language = prefs.getString(AppConstants.user2LanguageKey) ?? 'es';
-    });
+    // Don't load saved preferences - always start fresh with no selection
+    // Users must select languages each time
   }
 
   Future<void> _savePreferences() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(AppConstants.user1LanguageKey, _user1Language);
-    await prefs.setString(AppConstants.user2LanguageKey, _user2Language);
+    if (_user1Language != null && _user2Language != null) {
+      await prefs.setString(AppConstants.user1LanguageKey, _user1Language!);
+      await prefs.setString(AppConstants.user2LanguageKey, _user2Language!);
+    }
   }
 
   Future<void> _startConversation() async {
+    if (_user1Language == null || _user2Language == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select both languages'),
+        ),
+      );
+      return;
+    }
+
     if (_user1Language == _user2Language) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -55,8 +64,8 @@ class _SetupScreenState extends State<SetupScreen> {
 
     try {
       // Get language info
-      final user1Info = LanguageCodes.getLanguageInfo(_user1Language);
-      final user2Info = LanguageCodes.getLanguageInfo(_user2Language);
+      final user1Info = LanguageCodes.getLanguageInfo(_user1Language!);
+      final user2Info = LanguageCodes.getLanguageInfo(_user2Language!);
 
       if (user1Info == null || user2Info == null) {
         throw Exception('Invalid language selection');
@@ -122,14 +131,34 @@ class _SetupScreenState extends State<SetupScreen> {
             children: [
               // Header
               const SizedBox(height: 20),
-              const Text(
-                'AI Translator',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
-                  color: ThemeConfig.textPrimaryColor,
-                  letterSpacing: -1,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'AI Translator',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      color: ThemeConfig.textPrimaryColor,
+                      letterSpacing: -1,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.history,
+                      color: ThemeConfig.primaryAccent,
+                      size: 28,
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const HistoryScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
               const Text(
@@ -141,17 +170,17 @@ class _SetupScreenState extends State<SetupScreen> {
                 ),
               ),
 
-              const SizedBox(height: 60),
+              const SizedBox(height: 48),
 
               // Language Selection
               _buildLanguageCard(
-                label: 'First Language',
+                label: 'Person 1',
                 selectedLanguage: _user1Language,
                 onChanged: (value) {
                   if (value != null) setState(() => _user1Language = value);
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               Center(
                 child: TextButton(
                   onPressed: () {
@@ -164,16 +193,16 @@ class _SetupScreenState extends State<SetupScreen> {
                   child: const Text(
                     'Swap',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: ThemeConfig.primaryAccent,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               _buildLanguageCard(
-                label: 'Second Language',
+                label: 'Person 2',
                 selectedLanguage: _user2Language,
                 onChanged: (value) {
                   if (value != null) setState(() => _user2Language = value);
@@ -225,16 +254,18 @@ class _SetupScreenState extends State<SetupScreen> {
 
   Widget _buildLanguageCard({
     required String label,
-    required String selectedLanguage,
+    required String? selectedLanguage,
     required ValueChanged<String?> onChanged,
   }) {
-    final languageInfo = LanguageCodes.getLanguageInfo(selectedLanguage);
+    final selectedLanguageName = selectedLanguage != null
+        ? LanguageCodes.getLanguageInfo(selectedLanguage)?.name
+        : null;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
       decoration: BoxDecoration(
         color: ThemeConfig.surfaceColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: ThemeConfig.borderColor,
           width: 1.5,
@@ -245,7 +276,57 @@ class _SetupScreenState extends State<SetupScreen> {
           value: selectedLanguage,
           isExpanded: true,
           dropdownColor: Colors.white,
-          icon: const Icon(Icons.expand_more, color: ThemeConfig.textSecondaryColor, size: 20),
+          icon: const Icon(Icons.expand_more, color: ThemeConfig.textSecondaryColor, size: 24),
+          hint: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: ThemeConfig.textPrimaryColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Select Language',
+                style: const TextStyle(
+                  color: ThemeConfig.textSecondaryColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          selectedItemBuilder: (BuildContext context) {
+            return LanguageCodes.supportedLanguages.entries.map((entry) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: ThemeConfig.textPrimaryColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    entry.value.name,
+                    style: const TextStyle(
+                      color: ThemeConfig.textPrimaryColor,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              );
+            }).toList();
+          },
           style: const TextStyle(
             color: ThemeConfig.textPrimaryColor,
             fontSize: 18,

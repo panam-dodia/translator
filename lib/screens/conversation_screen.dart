@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../config/theme_config.dart';
 import '../providers/claude_provider.dart';
 import '../providers/conversation_provider.dart';
+import '../providers/history_provider.dart';
 import '../providers/speech_provider.dart';
 import '../providers/translation_provider.dart';
 import '../providers/tts_provider.dart';
@@ -232,6 +233,10 @@ class _ConversationScreenState extends State<ConversationScreen> {
                               child: Text('AI Insights'),
                             ),
                             const PopupMenuItem(
+                              value: 'save',
+                              child: Text('Save Conversation'),
+                            ),
+                            const PopupMenuItem(
                               value: 'clear',
                               child: Text('Clear History'),
                             ),
@@ -239,6 +244,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
                           onSelected: (value) {
                             if (value == 'insights') {
                               _showAIInsights(context);
+                            } else if (value == 'save') {
+                              _saveConversation(context);
                             } else if (value == 'clear') {
                               context.read<ConversationProvider>().clearHistory();
                             }
@@ -389,6 +396,53 @@ class _ConversationScreenState extends State<ConversationScreen> {
     );
   }
 
+
+  // Save current conversation to history
+  void _saveConversation(BuildContext context) async {
+    final conversationProvider = context.read<ConversationProvider>();
+    final historyProvider = context.read<HistoryProvider>();
+    final messages = conversationProvider.messages;
+
+    if (messages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No conversation to save')),
+      );
+      return;
+    }
+
+    final user1Profile = conversationProvider.user1Profile;
+    final user2Profile = conversationProvider.user2Profile;
+
+    if (user1Profile == null || user2Profile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: User profiles not available')),
+      );
+      return;
+    }
+
+    try {
+      await historyProvider.saveCurrentConversation(
+        messages: messages,
+        user1Language: user1Profile.languageCode.split('-')[0],
+        user2Language: user2Profile.languageCode.split('-')[0],
+      );
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Conversation saved to history!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving conversation: $e')),
+        );
+      }
+    }
+  }
 
   // AI Feature: Show conversation insights
   void _showAIInsights(BuildContext context) async {

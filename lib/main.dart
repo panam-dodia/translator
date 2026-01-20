@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'config/app_config.dart';
 import 'config/theme_config.dart';
 import 'providers/conversation_provider.dart';
+import 'providers/history_provider.dart';
 import 'providers/speech_provider.dart';
 import 'providers/translation_provider.dart';
 import 'providers/tts_provider.dart';
@@ -31,6 +32,7 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ConversationProvider()),
+        ChangeNotifierProvider(create: (_) => HistoryProvider()),
         ChangeNotifierProvider(create: (_) => SpeechProvider()),
         ChangeNotifierProvider(create: (_) => TranslationProvider()),
         ChangeNotifierProvider(create: (_) => TtsProvider()),
