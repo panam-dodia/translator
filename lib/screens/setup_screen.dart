@@ -5,13 +5,16 @@ import '../config/theme_config.dart';
 import '../models/user_profile.dart';
 import '../providers/conversation_provider.dart';
 import '../providers/translation_provider.dart';
+import '../providers/theme_provider.dart';
 import '../utils/constants.dart';
 import '../utils/language_codes.dart';
 import 'conversation_screen.dart';
 import 'history_screen.dart';
 
 class SetupScreen extends StatefulWidget {
-  const SetupScreen({super.key});
+  final bool isInNavigation;
+
+  const SetupScreen({super.key, this.isInNavigation = false});
 
   @override
   State<SetupScreen> createState() => _SetupScreenState();
@@ -21,6 +24,33 @@ class _SetupScreenState extends State<SetupScreen> {
   String? _user1Language; // Placeholder - null until selected
   String? _user2Language; // Placeholder - null until selected
   bool _isLoading = false;
+  String _downloadStatus = '';
+  double _downloadProgress = 0.0;
+  bool _showDownloadInfo = false;
+
+  // Get responsive sizes based on screen width
+  double _getResponsiveSize(BuildContext context, double mobileSize) {
+    final width = MediaQuery.of(context).size.width;
+    if (width > 600) {
+      // Tablet
+      return mobileSize * 1.3;
+    } else if (width > 400) {
+      // Large phone
+      return mobileSize * 1.1;
+    } else {
+      // Small phone
+      return mobileSize;
+    }
+  }
+
+  double _getResponsivePadding(BuildContext context, double basePadding) {
+    final width = MediaQuery.of(context).size.width;
+    if (width > 600) {
+      return basePadding * 1.5;
+    } else {
+      return basePadding;
+    }
+  }
 
   @override
   void initState() {
@@ -60,23 +90,56 @@ class _SetupScreenState extends State<SetupScreen> {
       return;
     }
 
-    setState(() => _isLoading = true);
+    // Get language info
+    final user1Info = LanguageCodes.getLanguageInfo(_user1Language!);
+    final user2Info = LanguageCodes.getLanguageInfo(_user2Language!);
+
+    if (user1Info == null || user2Info == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid language selection')),
+      );
+      return;
+    }
+
+    // Check if models need to be downloaded
+    final translationProvider = context.read<TranslationProvider>();
+    final user1Downloaded = await translationProvider.isModelDownloaded(user1Info.mlKitLanguage);
+    final user2Downloaded = await translationProvider.isModelDownloaded(user2Info.mlKitLanguage);
+
+    // Estimate download size
+    int downloadSizeMB = 0;
+    if (!user1Downloaded) downloadSizeMB += 35; // Approximate size per model
+    if (!user2Downloaded && user1Info.code != user2Info.code) downloadSizeMB += 35;
+
+    // Show download warning if models need to be downloaded
+    if (downloadSizeMB > 0) {
+      final shouldContinue = await _showDownloadWarning(downloadSizeMB);
+      if (!shouldContinue) return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _downloadProgress = 0.0;
+      _downloadStatus = 'Preparing...';
+    });
 
     try {
-      // Get language info
-      final user1Info = LanguageCodes.getLanguageInfo(_user1Language!);
-      final user2Info = LanguageCodes.getLanguageInfo(_user2Language!);
-
-      if (user1Info == null || user2Info == null) {
-        throw Exception('Invalid language selection');
+      // Download models if needed
+      if (!user1Downloaded) {
+        setState(() => _downloadStatus = 'Downloading ${user1Info.name} language...');
+        await translationProvider.downloadModel(user1Info.mlKitLanguage);
+        setState(() => _downloadProgress = 0.5);
       }
 
-      // Check and download translation models
-      final translationProvider = context.read<TranslationProvider>();
+      if (!user2Downloaded && user1Info.code != user2Info.code) {
+        setState(() => _downloadStatus = 'Downloading ${user2Info.name} language...');
+        await translationProvider.downloadModel(user2Info.mlKitLanguage);
+      }
 
-      // Download models if needed
-      await translationProvider.downloadModel(user1Info.mlKitLanguage);
-      await translationProvider.downloadModel(user2Info.mlKitLanguage);
+      setState(() {
+        _downloadProgress = 1.0;
+        _downloadStatus = 'Setting up...';
+      });
 
       // Create user profiles
       final user1Profile = UserProfile(
@@ -114,139 +177,309 @@ class _SetupScreenState extends State<SetupScreen> {
       }
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          _downloadStatus = '';
+          _downloadProgress = 0.0;
+        });
       }
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: ThemeConfig.backgroundColor,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'AI Translator',
+  Future<bool> _showDownloadWarning(int sizeMB) async {
+    final theme = Theme.of(context);
+
+    return await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          'Download Language Models',
+          style: TextStyle(fontSize: _getResponsiveSize(context, 18)),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'This app works 100% offline after downloading language models.',
+              style: TextStyle(
+                fontSize: _getResponsiveSize(context, 14),
+                color: Colors.grey[700],
+              ),
+            ),
+            SizedBox(height: _getResponsiveSize(context, 16)),
+            Row(
+              children: [
+                Icon(
+                  Icons.download,
+                  color: theme.colorScheme.primary,
+                  size: _getResponsiveSize(context, 20),
+                ),
+                SizedBox(width: _getResponsiveSize(context, 8)),
+                Text(
+                  'Download size: ~$sizeMB MB',
+                  style: TextStyle(
+                    fontSize: _getResponsiveSize(context, 16),
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: _getResponsiveSize(context, 8)),
+            Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: theme.colorScheme.primary,
+                  size: _getResponsiveSize(context, 20),
+                ),
+                SizedBox(width: _getResponsiveSize(context, 8)),
+                Expanded(
+                  child: Text(
+                    'One-time download. Use offline forever!',
                     style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      color: ThemeConfig.textPrimaryColor,
-                      letterSpacing: -1,
+                      fontSize: _getResponsiveSize(context, 14),
+                      color: theme.colorScheme.onSurface.withOpacity(0.7),
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.history,
-                      color: ThemeConfig.primaryAccent,
-                      size: 28,
+                ),
+              ],
+            ),
+            SizedBox(height: _getResponsiveSize(context, 16)),
+            Container(
+              padding: EdgeInsets.all(_getResponsiveSize(context, 12)),
+              decoration: BoxDecoration(
+                color: Colors.orange[50],
+                borderRadius: BorderRadius.circular(_getResponsiveSize(context, 8)),
+                border: Border.all(color: Colors.orange[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.warning_amber,
+                    color: Colors.orange[700],
+                    size: _getResponsiveSize(context, 20),
+                  ),
+                  SizedBox(width: _getResponsiveSize(context, 8)),
+                  Expanded(
+                    child: Text(
+                      'You may use mobile data or WiFi',
+                      style: TextStyle(
+                        fontSize: _getResponsiveSize(context, 13),
+                        color: Colors.black87,
+                      ),
                     ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const HistoryScreen(),
-                        ),
-                      );
-                    },
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'Speak naturally, connect globally',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: ThemeConfig.textSecondaryColor,
-                  fontWeight: FontWeight.w400,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(fontSize: _getResponsiveSize(context, 14)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(
+              'Download',
+              style: TextStyle(fontSize: _getResponsiveSize(context, 14)),
+            ),
+          ),
+        ],
+      ),
+    ) ?? false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = context.watch<ThemeProvider>().isDarkMode;
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                  horizontal: _getResponsivePadding(context, 24.0),
+                  vertical: _getResponsivePadding(context, 32.0),
                 ),
-              ),
-
-              const SizedBox(height: 48),
-
-              // Language Selection
-              _buildLanguageCard(
-                label: 'Person 1',
-                selectedLanguage: _user1Language,
-                onChanged: (value) {
-                  if (value != null) setState(() => _user1Language = value);
-                },
-              ),
-              const SizedBox(height: 24),
-              Center(
-                child: TextButton(
-                  onPressed: () {
-                    setState(() {
-                      final temp = _user1Language;
-                      _user1Language = _user2Language;
-                      _user2Language = temp;
-                    });
-                  },
-                  child: const Text(
-                    'Swap',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: ThemeConfig.primaryAccent,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    SizedBox(height: _getResponsiveSize(context, 20)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'AI Translator',
+                          style: TextStyle(
+                            fontSize: _getResponsiveSize(context, 32),
+                            fontWeight: FontWeight.w800,
+                            color: theme.colorScheme.onSurface,
+                            letterSpacing: -1,
+                          ),
+                        ),
+                        if (!widget.isInNavigation)
+                          IconButton(
+                            icon: Icon(
+                              Icons.history,
+                              color: theme.colorScheme.primary,
+                              size: _getResponsiveSize(context, 28),
+                            ),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const HistoryScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                      ],
                     ),
-                  ),
+                    SizedBox(height: _getResponsiveSize(context, 8)),
+                    Text(
+                      'Speak naturally, connect globally',
+                      style: TextStyle(
+                        fontSize: _getResponsiveSize(context, 16),
+                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+
+                    SizedBox(height: _getResponsiveSize(context, 48)),
+
+                    // Language Selection
+                    _buildLanguageCard(
+                      label: 'Person 1',
+                      selectedLanguage: _user1Language,
+                      onChanged: (value) {
+                        if (value != null) setState(() => _user1Language = value);
+                      },
+                    ),
+                    SizedBox(height: _getResponsiveSize(context, 24)),
+                    Center(
+                      child: TextButton(
+                        onPressed: () {
+                          setState(() {
+                            final temp = _user1Language;
+                            _user1Language = _user2Language;
+                            _user2Language = temp;
+                          });
+                        },
+                        child: Text(
+                          'Swap',
+                          style: TextStyle(
+                            fontSize: _getResponsiveSize(context, 16),
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: _getResponsiveSize(context, 24)),
+                    _buildLanguageCard(
+                      label: 'Person 2',
+                      selectedLanguage: _user2Language,
+                      onChanged: (value) {
+                        if (value != null) setState(() => _user2Language = value);
+                      },
+                    ),
+
+                    SizedBox(height: _getResponsiveSize(context, 32)),
+
+                    // Download progress indicator
+                    if (_isLoading && _downloadStatus.isNotEmpty) ...[
+                      Container(
+                        padding: EdgeInsets.all(_getResponsiveSize(context, 16)),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface,
+                          borderRadius: BorderRadius.circular(_getResponsiveSize(context, 12)),
+                          border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFe2e8f0)),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              _downloadStatus,
+                              style: TextStyle(
+                                fontSize: _getResponsiveSize(context, 14),
+                                color: theme.colorScheme.onSurface.withOpacity(0.8),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            SizedBox(height: _getResponsiveSize(context, 12)),
+                            LinearProgressIndicator(
+                              value: _downloadProgress > 0 ? _downloadProgress : null,
+                              backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                theme.colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: _getResponsiveSize(context, 16)),
+                    ],
+                  ],
                 ),
               ),
-              const SizedBox(height: 24),
-              _buildLanguageCard(
-                label: 'Person 2',
-                selectedLanguage: _user2Language,
-                onChanged: (value) {
-                  if (value != null) setState(() => _user2Language = value);
-                },
+            ),
+            // Start Button (Fixed at bottom)
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                _getResponsivePadding(context, 24),
+                _getResponsiveSize(context, 8),
+                _getResponsivePadding(context, 24),
+                _getResponsiveSize(context, 16),
               ),
-
-              const Spacer(),
-
-              // Start Button
-              SizedBox(
+              child: SizedBox(
                 width: double.infinity,
-                height: 56,
+                height: _getResponsiveSize(context, 56),
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _startConversation,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: ThemeConfig.primaryDark,
+                    backgroundColor: theme.colorScheme.primary,
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(_getResponsiveSize(context, 12)),
                     ),
                   ),
                   child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
+                      ? SizedBox(
+                          width: _getResponsiveSize(context, 20),
+                          height: _getResponsiveSize(context, 20),
+                          child: const CircularProgressIndicator(
                             color: Colors.white,
                             strokeWidth: 2.5,
                           ),
                         )
-                      : const Text(
+                      : Text(
                           'Start Conversation',
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: _getResponsiveSize(context, 16),
                             fontWeight: FontWeight.w600,
                             letterSpacing: 0.3,
                           ),
                         ),
                 ),
               ),
-              const SizedBox(height: 16),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -261,93 +494,309 @@ class _SetupScreenState extends State<SetupScreen> {
         ? LanguageCodes.getLanguageInfo(selectedLanguage)?.name
         : null;
 
+    final theme = Theme.of(context);
+    final isDark = context.watch<ThemeProvider>().isDarkMode;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+      padding: EdgeInsets.symmetric(
+        horizontal: _getResponsiveSize(context, 24),
+        vertical: _getResponsiveSize(context, 28),
+      ),
       decoration: BoxDecoration(
-        color: ThemeConfig.surfaceColor,
-        borderRadius: BorderRadius.circular(16),
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(_getResponsiveSize(context, 16)),
         border: Border.all(
-          color: ThemeConfig.borderColor,
+          color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFe2e8f0),
           width: 1.5,
         ),
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: selectedLanguage,
-          isExpanded: true,
-          dropdownColor: Colors.white,
-          icon: const Icon(Icons.expand_more, color: ThemeConfig.textSecondaryColor, size: 24),
-          hint: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  color: ThemeConfig.textPrimaryColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
+      child: Column(
+        children: [
+          DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: selectedLanguage,
+              isExpanded: true,
+              dropdownColor: theme.colorScheme.surface,
+              menuMaxHeight: 300, // Limit dropdown height and make it scrollable
+              icon: Icon(
+                Icons.expand_more,
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                size: _getResponsiveSize(context, 24),
               ),
-              const SizedBox(height: 6),
-              Text(
-                'Select Language',
-                style: const TextStyle(
-                  color: ThemeConfig.textSecondaryColor,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          selectedItemBuilder: (BuildContext context) {
-            return LanguageCodes.supportedLanguages.entries.map((entry) {
-              return Column(
+              hint: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     label,
-                    style: const TextStyle(
-                      color: ThemeConfig.textPrimaryColor,
-                      fontSize: 14,
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurface,
+                      fontSize: _getResponsiveSize(context, 14),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  SizedBox(height: _getResponsiveSize(context, 6)),
                   Text(
-                    entry.value.name,
-                    style: const TextStyle(
-                      color: ThemeConfig.textPrimaryColor,
-                      fontSize: 18,
+                    'Select Language',
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      fontSize: _getResponsiveSize(context, 18),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
-              );
-            }).toList();
-          },
-          style: const TextStyle(
-            color: ThemeConfig.textPrimaryColor,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+              ),
+              selectedItemBuilder: (BuildContext context) {
+                return LanguageCodes.supportedLanguages.entries.map((entry) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        label,
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurface,
+                          fontSize: _getResponsiveSize(context, 14),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(height: _getResponsiveSize(context, 6)),
+                      Text(
+                        entry.value.name,
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurface,
+                          fontSize: _getResponsiveSize(context, 18),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList();
+              },
+              style: TextStyle(
+                color: theme.colorScheme.onSurface,
+                fontSize: _getResponsiveSize(context, 18),
+                fontWeight: FontWeight.w600,
+              ),
+              items: LanguageCodes.supportedLanguages.entries.map((entry) {
+                return DropdownMenuItem(
+                  value: entry.key,
+                  child: Text(
+                    entry.value.name,
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurface,
+                      fontSize: _getResponsiveSize(context, 16),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                );
+              }).toList(),
+              onChanged: onChanged,
+            ),
           ),
-          items: LanguageCodes.supportedLanguages.entries.map((entry) {
-            return DropdownMenuItem(
-              value: entry.key,
-              child: Text(
-                entry.value.name,
-                style: const TextStyle(
-                  color: ThemeConfig.textPrimaryColor,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
+          if (selectedLanguage != null) ...[
+            SizedBox(height: _getResponsiveSize(context, 12)),
+            _buildModelStatusIndicator(selectedLanguage),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModelStatusIndicator(String languageCode) {
+    final langInfo = LanguageCodes.getLanguageInfo(languageCode);
+    if (langInfo == null) return const SizedBox.shrink();
+
+    return FutureBuilder<bool>(
+      future: context.read<TranslationProvider>().isModelDownloaded(langInfo.mlKitLanguage),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return SizedBox(
+            height: _getResponsiveSize(context, 16),
+            width: _getResponsiveSize(context, 16),
+            child: const CircularProgressIndicator(strokeWidth: 2),
+          );
+        }
+
+        final isDownloaded = snapshot.data!;
+        return Padding(
+          padding: EdgeInsets.only(top: _getResponsiveSize(context, 6)),
+          child: InkWell(
+            onTap: isDownloaded ? null : () => _downloadSingleModel(langInfo),
+            borderRadius: BorderRadius.circular(_getResponsiveSize(context, 14)),
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: _getResponsiveSize(context, 10),
+                vertical: _getResponsiveSize(context, 6),
+              ),
+              decoration: BoxDecoration(
+                color: isDownloaded ? Colors.green[50] : Colors.orange[50],
+                borderRadius: BorderRadius.circular(_getResponsiveSize(context, 14)),
+                border: Border.all(
+                  color: isDownloaded ? Colors.green[200]! : Colors.orange[200]!,
                 ),
               ),
-            );
-          }).toList(),
-          onChanged: onChanged,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isDownloaded ? Icons.check_circle : Icons.download,
+                    size: _getResponsiveSize(context, 16),
+                    color: isDownloaded ? Colors.green[700] : Colors.orange[700],
+                  ),
+                  SizedBox(width: _getResponsiveSize(context, 6)),
+                  Text(
+                    isDownloaded ? 'Ready' : 'Download',
+                    style: TextStyle(
+                      fontSize: _getResponsiveSize(context, 13),
+                      fontWeight: FontWeight.w600,
+                      color: isDownloaded ? Colors.green[700] : Colors.orange[700],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _downloadSingleModel(dynamic langInfo) async {
+    final theme = Theme.of(context);
+
+    final shouldDownload = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          'Download ${langInfo.name}?',
+          style: TextStyle(fontSize: _getResponsiveSize(context, 18)),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Download this language model to use offline.',
+              style: TextStyle(fontSize: _getResponsiveSize(context, 14)),
+            ),
+            SizedBox(height: _getResponsiveSize(context, 12)),
+            Row(
+              children: [
+                Icon(
+                  Icons.download,
+                  color: theme.colorScheme.primary,
+                  size: _getResponsiveSize(context, 20),
+                ),
+                SizedBox(width: _getResponsiveSize(context, 8)),
+                Text(
+                  'Size: ~35 MB',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: _getResponsiveSize(context, 14),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: _getResponsiveSize(context, 12)),
+            Container(
+              padding: EdgeInsets.all(_getResponsiveSize(context, 10)),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(_getResponsiveSize(context, 8)),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: Colors.blue[700],
+                    size: _getResponsiveSize(context, 18),
+                  ),
+                  SizedBox(width: _getResponsiveSize(context, 8)),
+                  Expanded(
+                    child: Text(
+                      'WiFi or mobile data will be used',
+                      style: TextStyle(fontSize: _getResponsiveSize(context, 12)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(fontSize: _getResponsiveSize(context, 14)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(
+              'Download',
+              style: TextStyle(fontSize: _getResponsiveSize(context, 14)),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDownload != true) return;
+
+    // Show loading dialog
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            SizedBox(height: _getResponsiveSize(context, 16)),
+            Text(
+              'Downloading ${langInfo.name}...',
+              style: TextStyle(fontSize: _getResponsiveSize(context, 14)),
+            ),
+          ],
         ),
       ),
     );
+
+    try {
+      final translationProvider = context.read<TranslationProvider>();
+      await translationProvider.downloadModel(langInfo.mlKitLanguage);
+
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${langInfo.name} language model downloaded'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      setState(() {}); // Refresh to update badge
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Download failed: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 }

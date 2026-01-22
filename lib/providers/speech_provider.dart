@@ -37,6 +37,9 @@ class SpeechProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Store callback for when recording stops (Whisper-specific)
+  Function(String)? _onFinalResultCallback;
+
   // Start listening
   Future<void> startListening({
     required Function(String) onFinalResult,
@@ -46,6 +49,7 @@ class SpeechProvider extends ChangeNotifier {
       _partialText = '';
       _finalText = '';
       _error = null;
+      _onFinalResultCallback = onFinalResult;
       notifyListeners();
 
       await _speechService.startListening(
@@ -66,13 +70,25 @@ class SpeechProvider extends ChangeNotifier {
     }
   }
 
-  // Stop listening
+  // Stop listening (Whisper will transcribe when recording stops)
   Future<void> stopListening() async {
     try {
-      await _speechService.stopListening();
-      _state = SpeechState.idle;
-      _partialText = '';
+      _state = SpeechState.processing; // Show processing state while transcribing
       notifyListeners();
+
+      await _speechService.stopListening(
+        onResult: (text) {
+          _finalText = text;
+          _state = SpeechState.idle;
+          _partialText = '';
+          notifyListeners();
+
+          // Call the stored callback with transcription result
+          if (_onFinalResultCallback != null) {
+            _onFinalResultCallback!(text);
+          }
+        },
+      );
     } catch (e) {
       _setError(e.toString());
     }

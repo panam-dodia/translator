@@ -29,6 +29,33 @@ class _ConversationScreenState extends State<ConversationScreen> {
     await speechProvider.initialize();
   }
 
+  // Auto-save conversation when leaving screen
+  Future<void> _autoSaveConversation() async {
+    try {
+      final conversationProvider = context.read<ConversationProvider>();
+      final historyProvider = context.read<HistoryProvider>();
+
+      final messages = conversationProvider.messages;
+
+      // Only save if there are messages
+      if (messages.isEmpty) return;
+
+      final user1Profile = conversationProvider.user1Profile;
+      final user2Profile = conversationProvider.user2Profile;
+
+      if (user1Profile == null || user2Profile == null) return;
+
+      await historyProvider.saveCurrentConversation(
+        messages: messages,
+        user1Language: user1Profile.languageCode.split('-')[0],
+        user2Language: user2Profile.languageCode.split('-')[0],
+      );
+    } catch (e) {
+      // Silently fail - don't show error on dispose
+      print('Auto-save error: $e');
+    }
+  }
+
   Future<void> _handleSpeech(String userId) async {
     final conversationProvider = context.read<ConversationProvider>();
     final speechProvider = context.read<SpeechProvider>();
@@ -110,17 +137,27 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Consumer<ConversationProvider>(
-        builder: (context, conversationProvider, _) {
-          final user1Profile = conversationProvider.user1Profile;
-          final user2Profile = conversationProvider.user2Profile;
-
-          if (user1Profile == null || user2Profile == null) {
-            return const Center(child: Text('Error: User profiles not set'));
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (!didPop) {
+          await _autoSaveConversation();
+          if (context.mounted) {
+            Navigator.of(context).pop();
           }
+        }
+      },
+      child: Scaffold(
+        body: Consumer<ConversationProvider>(
+          builder: (context, conversationProvider, _) {
+            final user1Profile = conversationProvider.user1Profile;
+            final user2Profile = conversationProvider.user2Profile;
 
-          return Column(
+            if (user1Profile == null || user2Profile == null) {
+              return const Center(child: Text('Error: User profiles not set'));
+            }
+
+            return Column(
             children: [
               // User 1 Section (Top)
               Expanded(
@@ -153,6 +190,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
             ],
           );
         },
+      ),
       ),
     );
   }
@@ -192,7 +230,12 @@ class _ConversationScreenState extends State<ConversationScreen> {
                     children: [
                       if (!isRotated)
                         GestureDetector(
-                          onTap: () => Navigator.pop(context),
+                          onTap: () async {
+                            await _autoSaveConversation();
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                            }
+                          },
                           child: const Text(
                             'Back',
                             style: TextStyle(
@@ -233,10 +276,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
                               child: Text('AI Insights'),
                             ),
                             const PopupMenuItem(
-                              value: 'save',
-                              child: Text('Save Conversation'),
-                            ),
-                            const PopupMenuItem(
                               value: 'clear',
                               child: Text('Clear History'),
                             ),
@@ -244,8 +283,6 @@ class _ConversationScreenState extends State<ConversationScreen> {
                           onSelected: (value) {
                             if (value == 'insights') {
                               _showAIInsights(context);
-                            } else if (value == 'save') {
-                              _saveConversation(context);
                             } else if (value == 'clear') {
                               context.read<ConversationProvider>().clearHistory();
                             }

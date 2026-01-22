@@ -47,6 +47,23 @@ class TranslationService {
     return _translators[key]!;
   }
 
+  // Pre-process text for better translation
+  String _preprocessText(String text) {
+    // Trim whitespace
+    String processed = text.trim();
+
+    // Replace multiple spaces with single space
+    processed = processed.replaceAll(RegExp(r'\s+'), ' ');
+
+    // Normalize punctuation spacing (optional - sometimes helps)
+    // Remove space before punctuation
+    processed = processed.replaceAll(RegExp(r'\s+([,\.!?;:])'), r'$1');
+    // Add space after punctuation if missing
+    processed = processed.replaceAll(RegExp(r'([,\.!?;:])([^\s])'), r'$1 $2');
+
+    return processed;
+  }
+
   // Translate text
   Future<String> translate({
     required String text,
@@ -57,8 +74,11 @@ class TranslationService {
       return '';
     }
 
+    // Pre-process text
+    final processedText = _preprocessText(text);
+
     // Check cache first
-    final cacheKey = '${sourceLanguage.bcpCode}_${targetLanguage.bcpCode}_$text';
+    final cacheKey = '${sourceLanguage.bcpCode}_${targetLanguage.bcpCode}_$processedText';
     if (_translationCache.containsKey(cacheKey)) {
       return _translationCache[cacheKey]!;
     }
@@ -70,7 +90,7 @@ class TranslationService {
 
       // Get translator and translate
       final translator = _getTranslator(sourceLanguage, targetLanguage);
-      final translatedText = await translator.translateText(text);
+      final translatedText = await translator.translateText(processedText);
 
       // Cache the result
       _translationCache[cacheKey] = translatedText;

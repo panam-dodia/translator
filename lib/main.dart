@@ -8,7 +8,8 @@ import 'providers/speech_provider.dart';
 import 'providers/translation_provider.dart';
 import 'providers/tts_provider.dart';
 import 'providers/claude_provider.dart';
-import 'screens/setup_screen.dart';
+import 'providers/theme_provider.dart';
+import 'screens/main_navigation_screen.dart';
 import 'utils/constants.dart';
 
 void main() async {
@@ -31,6 +32,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => ConversationProvider()),
         ChangeNotifierProvider(create: (_) => HistoryProvider()),
         ChangeNotifierProvider(create: (_) => SpeechProvider()),
@@ -38,11 +40,15 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TtsProvider()),
         ChangeNotifierProvider(create: (_) => ClaudeProvider()),
       ],
-      child: MaterialApp(
-        title: AppConstants.appName,
-        theme: ThemeConfig.lightTheme,
-        debugShowCheckedModeBanner: false,
-        home: const SetupScreen(),
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, _) {
+          return MaterialApp(
+            title: AppConstants.appName,
+            theme: themeProvider.currentTheme,
+            debugShowCheckedModeBanner: false,
+            home: const MainNavigationScreen(),
+          );
+        },
       ),
     );
   }

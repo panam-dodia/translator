@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/theme_config.dart';
 import '../providers/history_provider.dart';
+import '../providers/theme_provider.dart';
 import '../models/conversation_session.dart';
 import '../utils/language_codes.dart';
 import 'chat_screen.dart';
 import 'session_detail_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({super.key});
+  final bool isInNavigation;
+  final VoidCallback? onNavigateToHome;
+
+  const HistoryScreen({super.key, this.isInNavigation = false, this.onNavigateToHome});
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -36,8 +40,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = context.watch<ThemeProvider>().isDarkMode;
+
     return Scaffold(
-      backgroundColor: ThemeConfig.backgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -47,25 +54,31 @@ class _HistoryScreenState extends State<HistoryScreen> {
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const Icon(
+                    onTap: () {
+                      if (widget.isInNavigation && widget.onNavigateToHome != null) {
+                        widget.onNavigateToHome!();
+                      } else {
+                        Navigator.pop(context);
+                      }
+                    },
+                    child: Icon(
                       Icons.arrow_back,
-                      color: ThemeConfig.textPrimaryColor,
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(width: 16),
-                  const Text(
+                  Text(
                     'History',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w800,
-                      color: ThemeConfig.textPrimaryColor,
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.chat_bubble_outline),
-                    color: ThemeConfig.primaryAccent,
+                    color: theme.colorScheme.primary,
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -86,9 +99,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 controller: _searchController,
                 decoration: InputDecoration(
                   hintText: 'Search conversations...',
-                  prefixIcon: const Icon(Icons.search, color: ThemeConfig.textSecondaryColor),
+                  prefixIcon: Icon(Icons.search, color: theme.colorScheme.onSurface.withOpacity(0.5)),
                   filled: true,
-                  fillColor: ThemeConfig.surfaceColor,
+                  fillColor: theme.colorScheme.surface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
