@@ -45,8 +45,14 @@ dependencies:
 
   # Translation
   google_mlkit_translation: ^0.12.0  # On-device translation (offline, free, backup option)
-  onnxruntime: ^1.4.1                # ONNX Runtime for OPUS-MT models (better quality)
-  ffi: ^2.1.3                        # Required for ONNX Runtime
+  http: ^1.1.0                       # HTTP client for downloading ONNX models
+  archive: ^3.4.0                    # Extract compressed model files
+
+  # ONNX Runtime Flutter - Full-featured ONNX Runtime with tensor access
+  onnxruntime:
+    git:
+      url: https://github.com/gtbluesky/onnxruntime_flutter.git
+      ref: main
 
   # Claude API
   dio: ^5.4.0                     # HTTP client for Claude API

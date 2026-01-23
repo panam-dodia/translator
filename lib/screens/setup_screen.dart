@@ -27,6 +27,7 @@ class _SetupScreenState extends State<SetupScreen> {
   String _downloadStatus = '';
   double _downloadProgress = 0.0;
   bool _showDownloadInfo = false;
+  int _refreshKey = 0; // Add refresh key to force rebuild
 
   // Get responsive sizes based on screen width
   double _getResponsiveSize(BuildContext context, double mobileSize) {
@@ -101,43 +102,28 @@ class _SetupScreenState extends State<SetupScreen> {
       return;
     }
 
-    // Check if models need to be downloaded
+    // Check if ONNX neural translation models are downloaded
     final translationProvider = context.read<TranslationProvider>();
-    final user1Downloaded = await translationProvider.isModelDownloaded(user1Info.mlKitLanguage);
-    final user2Downloaded = await translationProvider.isModelDownloaded(user2Info.mlKitLanguage);
 
-    // Estimate download size
-    int downloadSizeMB = 0;
-    if (!user1Downloaded) downloadSizeMB += 35; // Approximate size per model
-    if (!user2Downloaded && user1Info.code != user2Info.code) downloadSizeMB += 35;
+    final onnxDownloaded = await translationProvider.areOnnxModelsDownloaded(
+      user1Info.mlKitLanguage,
+      user2Info.mlKitLanguage,
+    );
 
-    // Show download warning if models need to be downloaded
-    if (downloadSizeMB > 0) {
-      final shouldContinue = await _showDownloadWarning(downloadSizeMB);
-      if (!shouldContinue) return;
+    // Check if models are missing
+    if (!onnxDownloaded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please download translation models first (click on the language cards)'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
     }
 
-    setState(() {
-      _isLoading = true;
-      _downloadProgress = 0.0;
-      _downloadStatus = 'Preparing...';
-    });
-
     try {
-      // Download models if needed
-      if (!user1Downloaded) {
-        setState(() => _downloadStatus = 'Downloading ${user1Info.name} language...');
-        await translationProvider.downloadModel(user1Info.mlKitLanguage);
-        setState(() => _downloadProgress = 0.5);
-      }
-
-      if (!user2Downloaded && user1Info.code != user2Info.code) {
-        setState(() => _downloadStatus = 'Downloading ${user2Info.name} language...');
-        await translationProvider.downloadModel(user2Info.mlKitLanguage);
-      }
-
       setState(() {
-        _downloadProgress = 1.0;
+        _isLoading = true;
         _downloadStatus = 'Setting up...';
       });
 
@@ -186,6 +172,128 @@ class _SetupScreenState extends State<SetupScreen> {
     }
   }
 
+  Future<bool> _showOnnxDownloadDialog() async {
+    final theme = Theme.of(context);
+
+    return await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          'Neural Translation Models',
+          style: TextStyle(fontSize: _getResponsiveSize(context, 18)),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Download high-quality neural translation models for better accuracy.',
+              style: TextStyle(
+                fontSize: _getResponsiveSize(context, 14),
+                color: Colors.grey[700],
+              ),
+            ),
+            SizedBox(height: _getResponsiveSize(context, 16)),
+            Row(
+              children: [
+                Icon(
+                  Icons.download,
+                  color: theme.colorScheme.primary,
+                  size: _getResponsiveSize(context, 20),
+                ),
+                SizedBox(width: _getResponsiveSize(context, 8)),
+                Text(
+                  'Size: ~150-300 MB',
+                  style: TextStyle(
+                    fontSize: _getResponsiveSize(context, 16),
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: _getResponsiveSize(context, 12)),
+            Container(
+              padding: EdgeInsets.all(_getResponsiveSize(context, 12)),
+              decoration: BoxDecoration(
+                color: Colors.green[50],
+                borderRadius: BorderRadius.circular(_getResponsiveSize(context, 8)),
+                border: Border.all(color: Colors.green[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.auto_awesome,
+                    color: Colors.green[700],
+                    size: _getResponsiveSize(context, 20),
+                  ),
+                  SizedBox(width: _getResponsiveSize(context, 8)),
+                  Expanded(
+                    child: Text(
+                      'Much better translation quality - understands context & idioms!',
+                      style: TextStyle(
+                        fontSize: _getResponsiveSize(context, 13),
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: _getResponsiveSize(context, 12)),
+            Container(
+              padding: EdgeInsets.all(_getResponsiveSize(context, 12)),
+              decoration: BoxDecoration(
+                color: Colors.orange[50],
+                borderRadius: BorderRadius.circular(_getResponsiveSize(context, 8)),
+                border: Border.all(color: Colors.orange[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.warning_amber,
+                    color: Colors.orange[700],
+                    size: _getResponsiveSize(context, 20),
+                  ),
+                  SizedBox(width: _getResponsiveSize(context, 8)),
+                  Expanded(
+                    child: Text(
+                      'Larger download - make sure you have WiFi!',
+                      style: TextStyle(
+                        fontSize: _getResponsiveSize(context, 13),
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(fontSize: _getResponsiveSize(context, 14)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(
+              'Download',
+              style: TextStyle(fontSize: _getResponsiveSize(context, 14)),
+            ),
+          ),
+        ],
+      ),
+    ) ?? false;
+  }
+
   Future<bool> _showDownloadWarning(int sizeMB) async {
     final theme = Theme.of(context);
 
@@ -193,7 +301,7 @@ class _SetupScreenState extends State<SetupScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(
-          'Download Language Models',
+          'Download Fallback Models',
           style: TextStyle(fontSize: _getResponsiveSize(context, 18)),
         ),
         content: Column(
@@ -607,8 +715,72 @@ class _SetupScreenState extends State<SetupScreen> {
     final langInfo = LanguageCodes.getLanguageInfo(languageCode);
     if (langInfo == null) return const SizedBox.shrink();
 
+    // Determine if we need to check pair or individual language
+    final otherLanguage = languageCode == _user1Language ? _user2Language : _user1Language;
+
+    // If both languages selected, check the specific pair
+    if (otherLanguage != null) {
+      return FutureBuilder<bool>(
+        key: ValueKey('model_status_${languageCode}_$_refreshKey'),
+        future: _checkOnnxModels(_user1Language!, _user2Language!),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return SizedBox(
+              height: _getResponsiveSize(context, 16),
+              width: _getResponsiveSize(context, 16),
+              child: const CircularProgressIndicator(strokeWidth: 2),
+            );
+          }
+
+          final onnxDownloaded = snapshot.data!;
+
+          return Padding(
+            padding: EdgeInsets.only(top: _getResponsiveSize(context, 6)),
+            child: InkWell(
+              onTap: !onnxDownloaded ? () => _downloadModelsForLanguage(languageCode) : null,
+              borderRadius: BorderRadius.circular(_getResponsiveSize(context, 14)),
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: _getResponsiveSize(context, 10),
+                  vertical: _getResponsiveSize(context, 6),
+                ),
+                decoration: BoxDecoration(
+                  color: onnxDownloaded ? Colors.green[50] : Colors.orange[50],
+                  borderRadius: BorderRadius.circular(_getResponsiveSize(context, 14)),
+                  border: Border.all(
+                    color: onnxDownloaded ? Colors.green[200]! : Colors.orange[200]!,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      onnxDownloaded ? Icons.check_circle : Icons.download,
+                      size: _getResponsiveSize(context, 16),
+                      color: onnxDownloaded ? Colors.green[700] : Colors.orange[700],
+                    ),
+                    SizedBox(width: _getResponsiveSize(context, 6)),
+                    Text(
+                      onnxDownloaded ? 'Ready' : 'Download',
+                      style: TextStyle(
+                        fontSize: _getResponsiveSize(context, 13),
+                        fontWeight: FontWeight.w600,
+                        color: onnxDownloaded ? Colors.green[700] : Colors.orange[700],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    // Only this language selected - check if ANY models exist for this language
     return FutureBuilder<bool>(
-      future: context.read<TranslationProvider>().isModelDownloaded(langInfo.mlKitLanguage),
+      key: ValueKey('model_status_single_${languageCode}_$_refreshKey'),
+      future: _checkIfLanguageHasAnyModels(languageCode),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return SizedBox(
@@ -618,11 +790,12 @@ class _SetupScreenState extends State<SetupScreen> {
           );
         }
 
-        final isDownloaded = snapshot.data!;
+        final hasModels = snapshot.data!;
+
         return Padding(
           padding: EdgeInsets.only(top: _getResponsiveSize(context, 6)),
           child: InkWell(
-            onTap: isDownloaded ? null : () => _downloadSingleModel(langInfo),
+            onTap: !hasModels ? () => _downloadModelsForSingleLanguage(languageCode) : null,
             borderRadius: BorderRadius.circular(_getResponsiveSize(context, 14)),
             child: Container(
               padding: EdgeInsets.symmetric(
@@ -630,27 +803,27 @@ class _SetupScreenState extends State<SetupScreen> {
                 vertical: _getResponsiveSize(context, 6),
               ),
               decoration: BoxDecoration(
-                color: isDownloaded ? Colors.green[50] : Colors.orange[50],
+                color: hasModels ? Colors.green[50] : Colors.orange[50],
                 borderRadius: BorderRadius.circular(_getResponsiveSize(context, 14)),
                 border: Border.all(
-                  color: isDownloaded ? Colors.green[200]! : Colors.orange[200]!,
+                  color: hasModels ? Colors.green[200]! : Colors.orange[200]!,
                 ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    isDownloaded ? Icons.check_circle : Icons.download,
+                    hasModels ? Icons.check_circle : Icons.download,
                     size: _getResponsiveSize(context, 16),
-                    color: isDownloaded ? Colors.green[700] : Colors.orange[700],
+                    color: hasModels ? Colors.green[700] : Colors.orange[700],
                   ),
                   SizedBox(width: _getResponsiveSize(context, 6)),
                   Text(
-                    isDownloaded ? 'Ready' : 'Download',
+                    hasModels ? 'Ready' : 'Download',
                     style: TextStyle(
                       fontSize: _getResponsiveSize(context, 13),
                       fontWeight: FontWeight.w600,
-                      color: isDownloaded ? Colors.green[700] : Colors.orange[700],
+                      color: hasModels ? Colors.green[700] : Colors.orange[700],
                     ),
                   ),
                 ],
@@ -660,6 +833,271 @@ class _SetupScreenState extends State<SetupScreen> {
         );
       },
     );
+  }
+
+  Future<bool> _checkIfLanguageHasAnyModels(String languageCode) async {
+    // Check if this language has models paired with any common language
+    print('[SETUP] Checking if $languageCode has any models...');
+    final langInfo = LanguageCodes.getLanguageInfo(languageCode);
+    if (langInfo == null) {
+      print('[SETUP] Language info not found for $languageCode');
+      return false;
+    }
+
+    final provider = context.read<TranslationProvider>();
+
+    // Check against common language pairs (en, hi, es, fr, de, etc.)
+    final commonLanguages = ['en', 'hi', 'es', 'fr', 'de', 'zh', 'ja', 'ko', 'ar', 'ru'];
+
+    for (var otherLang in commonLanguages) {
+      if (otherLang == languageCode) continue;
+
+      final otherInfo = LanguageCodes.getLanguageInfo(otherLang);
+      if (otherInfo == null) continue;
+
+      // Check if models exist for this pair in either direction
+      print('[SETUP] Checking $languageCode paired with $otherLang...');
+      final hasModels1 = await provider.areOnnxModelsDownloaded(
+        langInfo.mlKitLanguage,
+        otherInfo.mlKitLanguage,
+      );
+
+      if (hasModels1) {
+        print('[SETUP] Found models for $languageCode-$otherLang pair!');
+        return true;
+      }
+    }
+
+    print('[SETUP] No models found for $languageCode with any common language');
+    return false;
+  }
+
+  Future<bool> _checkOnnxModels(String lang1, String lang2) async {
+    final info1 = LanguageCodes.getLanguageInfo(lang1);
+    final info2 = LanguageCodes.getLanguageInfo(lang2);
+
+    if (info1 == null || info2 == null) return false;
+
+    final provider = context.read<TranslationProvider>();
+    final result = await provider.areOnnxModelsDownloaded(
+      info1.mlKitLanguage,
+      info2.mlKitLanguage,
+    );
+    print('[SETUP] Checking models for $lang1-$lang2: $result');
+    return result;
+  }
+
+  Future<void> _downloadModelsForSingleLanguage(String languageCode) async {
+    final langInfo = LanguageCodes.getLanguageInfo(languageCode);
+    if (langInfo == null) return;
+
+    // Choose a common pairing language (English if not English, Hindi if English)
+    final defaultPairLanguage = languageCode == 'en' ? 'hi' : 'en';
+    final pairLangInfo = LanguageCodes.getLanguageInfo(defaultPairLanguage);
+    if (pairLangInfo == null) return;
+
+    // Show confirmation dialog
+    final shouldDownload = await _showModelDownloadConfirmation(langInfo, pairLangInfo);
+    if (!shouldDownload) return;
+
+    setState(() {
+      _isLoading = true;
+      _downloadProgress = 0.0;
+      _downloadStatus = 'Downloading models...';
+    });
+
+    try {
+      final provider = context.read<TranslationProvider>();
+
+      // Download ONNX models for both directions
+      print('[SETUP] Downloading models for ${langInfo.name} (paired with ${pairLangInfo.name})');
+      setState(() => _downloadStatus = 'Downloading ${langInfo.name} ↔ ${pairLangInfo.name} models...');
+      await provider.downloadOnnxModels(
+        sourceLanguage: langInfo.mlKitLanguage,
+        targetLanguage: pairLangInfo.mlKitLanguage,
+      );
+      print('[SETUP] Download completed for ${langInfo.name}');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${langInfo.name} language model downloaded successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // Wait a bit to ensure files are fully written
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          setState(() {
+            _refreshKey++;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Download failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _downloadProgress = 0.0;
+          _downloadStatus = '';
+        });
+      }
+    }
+  }
+
+  Future<void> _downloadModelsForLanguage(String languageCode) async {
+    final otherLanguage = languageCode == _user1Language ? _user2Language : _user1Language;
+
+    if (otherLanguage == null) {
+      // If other language not selected, use the single language download
+      await _downloadModelsForSingleLanguage(languageCode);
+      return;
+    }
+
+    final langInfo = LanguageCodes.getLanguageInfo(languageCode);
+    final otherLangInfo = LanguageCodes.getLanguageInfo(otherLanguage);
+
+    if (langInfo == null || otherLangInfo == null) return;
+
+    // Show confirmation dialog
+    final shouldDownload = await _showModelDownloadConfirmation(langInfo, otherLangInfo);
+    if (!shouldDownload) return;
+
+    setState(() {
+      _isLoading = true;
+      _downloadProgress = 0.0;
+      _downloadStatus = 'Downloading models...';
+    });
+
+    try {
+      final provider = context.read<TranslationProvider>();
+
+      // Download ONNX models only
+      print('[SETUP] Downloading models for ${langInfo.name} ↔ ${otherLangInfo.name}');
+      setState(() => _downloadStatus = 'Downloading neural translation models...');
+      await provider.downloadOnnxModels(
+        sourceLanguage: langInfo.mlKitLanguage,
+        targetLanguage: otherLangInfo.mlKitLanguage,
+      );
+      print('[SETUP] Download completed for ${langInfo.name} ↔ ${otherLangInfo.name}');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${langInfo.name} language model downloaded successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // Wait a bit to ensure files are fully written
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          setState(() {
+            _refreshKey++; // Increment to force FutureBuilder refresh
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Download failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _downloadProgress = 0.0;
+          _downloadStatus = '';
+        });
+      }
+    }
+  }
+
+  Future<bool> _showModelDownloadConfirmation(dynamic lang1, dynamic lang2) async {
+    final theme = Theme.of(context);
+
+    return await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          'Download Translation Models?',
+          style: TextStyle(fontSize: _getResponsiveSize(context, 18)),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'This will download:',
+              style: TextStyle(
+                fontSize: _getResponsiveSize(context, 14),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: _getResponsiveSize(context, 12)),
+            Row(
+              children: [
+                Icon(Icons.auto_awesome, color: Colors.purple[700], size: 20),
+                SizedBox(width: _getResponsiveSize(context, 8)),
+                Text(
+                  'Neural models (~150-300 MB)',
+                  style: TextStyle(fontSize: _getResponsiveSize(context, 14)),
+                ),
+              ],
+            ),
+            SizedBox(height: _getResponsiveSize(context, 16)),
+            Container(
+              padding: EdgeInsets.all(_getResponsiveSize(context, 12)),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(_getResponsiveSize(context, 8)),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue[700], size: 18),
+                  SizedBox(width: _getResponsiveSize(context, 8)),
+                  Expanded(
+                    child: Text(
+                      'Works on WiFi or mobile data. One-time download!',
+                      style: TextStyle(
+                        fontSize: _getResponsiveSize(context, 12),
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text('Cancel', style: TextStyle(fontSize: _getResponsiveSize(context, 14))),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Download', style: TextStyle(fontSize: _getResponsiveSize(context, 14))),
+          ),
+        ],
+      ),
+    ) ?? false;
   }
 
   Future<void> _downloadSingleModel(dynamic langInfo) async {
